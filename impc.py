@@ -77,6 +77,7 @@ def status_json(server):
         except:
             pass
         else:
+            buf.seek(0)
             js = json.load(buf)
             if type(js['icestats']['source']) == list:
                 listeners = sum([int(i['listeners']) for i in js['icestats']['source']])
