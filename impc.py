@@ -10,6 +10,7 @@ import os
 from time import sleep
 from cStringIO import StringIO
 import re
+from datetime import datetime, tzinfo, timedelta
 
 DBSCHEMA = (
     "create table server ("
@@ -29,6 +30,18 @@ DBSCHEMA = (
 )
 
 UA="User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.71 Safari/537.36"
+
+ZERO = timedelta(0)
+class UTC(tzinfo):
+    def utcoffset(self, dt):
+        return ZERO
+
+    def tzname(self, dt):
+        return "UTC"
+
+    def dst(self, dt):
+        return ZERO
+
 
 def status2_xsl(server):
     curl = pycurl.Curl()
@@ -156,6 +169,7 @@ def daemonize(self,
 if __name__ == "__main__":
     dbpath = "./impc.sqlite"
     prepare = not os.path.exists(dbpath)
+    utc = UTC()
 
     conn = sqlite3.connect(dbpath)
     conn.row_factory = sqlite3.Row
@@ -174,17 +188,19 @@ if __name__ == "__main__":
     #daemonize()
 
     while True:
+        now = datetime.utcnow()
+        now.replace(tzinfo=utc)
         for server in cursor.execute("select * from server where active=1").fetchall():
             listeners = methods[server["type"]](server)
             if listeners is not None:
                 cursor.execute(
-                    "insert into entry (server, listeners) values (?, ?)",
-                    (server['id'], listeners))
+                    "insert into entry (time, server, listeners) values (?, ?, ?)",
+                    (now, server['id'], listeners))
                 rollbackvalues[server['id']] = listeners
             else:
                 cursor.execute(
-                    "insert into entry (server, listeners) values (?, ?)",
-                    (server['id'], rollbackvalues[server['id']]/2))
+                    "insert into entry (time, server, listeners) values (?, ?, ?)",
+                    (now, server['id'], rollbackvalues[server['id']]/2))
                 rollbackvalues[server['id']] = rollbackvalues[server['id']]/2
         conn.commit()
         sleep(600)
