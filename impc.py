@@ -181,7 +181,10 @@ if __name__ == "__main__":
 
     rollbackvalues = {}
 
-    for server in cursor.execute("select * from server"):
+    servers = cursor.execute("select * from server").fetchall()
+    if not servers:
+        sys.exit()
+    for server in servers:
         print server
         rollbackvalues[server['id']] = 0
 
