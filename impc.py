@@ -194,7 +194,10 @@ if __name__ == "__main__":
         now = datetime.utcnow()
         now.replace(tzinfo=utc)
         for server in cursor.execute("select * from server where active=1").fetchall():
-            listeners = methods[server["type"]](server)
+            try:
+                listeners = methods[server["type"]](server)
+            except:
+                listeners = None
             if listeners is not None:
                 cursor.execute(
                     "insert into entry (time, server, listeners) values (?, ?, ?)",
