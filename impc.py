@@ -1,5 +1,5 @@
 #!/usr/bin/env
-# Icy Multi Protocol Inquisitor
+# Icy Multiserver Poll Comparison
 # aka IMPC
 # aka IMPiCcione
 import json
@@ -10,7 +10,8 @@ import os
 from time import sleep
 from cStringIO import StringIO
 import re
-from datetime import datetime, tzinfo, timedelta
+from datetime import datetime
+import pytz
 
 DBSCHEMA = (
     "create table server ("
@@ -19,28 +20,28 @@ DBSCHEMA = (
     "   host text not null,"
     "   port int not null default 8000,"
     "   type text not null check(type = 'icecast2:xsl' or type = 'icecast2:json' or type = 'shoutcast:icy'),"
+    "   timezone text not null default 'UTC', "
     "   active integer default 1 check(active=1 or active=0)"
     ");",
     "create table entry ("
     "   time timestamp not null default current_timestamp,"
+    "   local_time timestamp not null default current_timestamp,"
     "   server int not null,"
     "   listeners int not null default 0,"
     "   foreign key(server) references server(id)"
     ");",
+    "create view hourly as "
+    "select strftime('%s', e.local_time) as time,"
+    "   s.name as name,"
+    "   sum(e.listeners) as sum,"
+    "   count(e.local_time) as count "
+    "from entry e left join server s on (e.server=s.id) "
+    "group by strftime('%Y%m%d%H00', e.local_time), e.server "
+    "order by e.local_time desc;",
 )
 
-UA="User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.71 Safari/537.36"
-
-ZERO = timedelta(0)
-class UTC(tzinfo):
-    def utcoffset(self, dt):
-        return ZERO
-
-    def tzname(self, dt):
-        return "UTC"
-
-    def dst(self, dt):
-        return ZERO
+UA = "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_0)" \
+    " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.71 Safari/537.36"
 
 
 def status2_xsl(server):
@@ -69,6 +70,7 @@ def status2_xsl(server):
                 re.M).groups()[0]
             return int(listeners)
     return None
+
 
 def status_json(server):
     curl = pycurl.Curl()
@@ -169,7 +171,7 @@ def daemonize(self,
 if __name__ == "__main__":
     dbpath = "./impc.sqlite"
     prepare = not os.path.exists(dbpath)
-    utc = UTC()
+    utc = pytz.utc()
 
     conn = sqlite3.connect(dbpath)
     conn.row_factory = sqlite3.Row
@@ -191,13 +193,15 @@ if __name__ == "__main__":
     #daemonize()
 
     while True:
-        now = datetime.utcnow()
-        now.replace(tzinfo=utc)
+        now = datetime.now(utc)
         for server in cursor.execute("select * from server where active=1").fetchall():
             try:
                 listeners = methods[server["type"]](server)
             except:
                 listeners = None
+            tz = pytz.timezone(server["timezone"])
+            localnow = now.astimezone(tz)
+
             if listeners is not None:
                 cursor.execute(
                     "insert into entry (time, server, listeners) values (?, ?, ?)",
@@ -205,8 +209,8 @@ if __name__ == "__main__":
                 rollbackvalues[server['id']] = listeners
             else:
                 cursor.execute(
-                    "insert into entry (time, server, listeners) values (?, ?, ?)",
-                    (now, server['id'], rollbackvalues[server['id']]/2))
+                    "insert into entry (time, local_time, server, listeners) values (?, ?, ?, ?)",
+                    (now, local_now, server['id'], rollbackvalues[server['id']]/2))
                 rollbackvalues[server['id']] = rollbackvalues[server['id']]/2
         conn.commit()
         sleep(600)
