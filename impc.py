@@ -171,7 +171,7 @@ def daemonize(self,
 if __name__ == "__main__":
     dbpath = "./impc.sqlite"
     prepare = not os.path.exists(dbpath)
-    utc = pytz.utc()
+    utc = pytz.utc
 
     conn = sqlite3.connect(dbpath)
     conn.row_factory = sqlite3.Row
