@@ -204,13 +204,13 @@ if __name__ == "__main__":
 
             if listeners is not None:
                 cursor.execute(
-                    "insert into entry (time, server, listeners) values (?, ?, ?)",
-                    (now, server['id'], listeners))
+                    "insert into entry (time, local_time, server, listeners) values (?, ?, ?, ?)",
+                    (now, localnow, server['id'], listeners))
                 rollbackvalues[server['id']] = listeners
             else:
                 cursor.execute(
                     "insert into entry (time, local_time, server, listeners) values (?, ?, ?, ?)",
-                    (now, local_now, server['id'], rollbackvalues[server['id']]/2))
+                    (now, localnow, server['id'], rollbackvalues[server['id']]/2))
                 rollbackvalues[server['id']] = rollbackvalues[server['id']]/2
         conn.commit()
         sleep(600)
