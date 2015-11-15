@@ -65,7 +65,7 @@ def status2_xsl(server):
             pass
         else:
             listeners = re.search(
-                "Global,Clients*:\d+ Source:\s*\d*\s*,[^,]*,(\d+)",
+                "Global,Clients*:\d+[ ,]Sources?:\s*\d*\s*,[^,]*,(\d+)",
                 buf.getvalue(),
                 re.M).groups()[0]
             return int(listeners)
@@ -171,7 +171,7 @@ def daemonize(self,
 if __name__ == "__main__":
     dbpath = "./impc.sqlite"
     prepare = not os.path.exists(dbpath)
-    utc = pytz.utc
+    utc = pytz.utc()
 
     conn = sqlite3.connect(dbpath)
     conn.row_factory = sqlite3.Row
@@ -204,13 +204,13 @@ if __name__ == "__main__":
 
             if listeners is not None:
                 cursor.execute(
-                    "insert into entry (time, local_time, server, listeners) values (?, ?, ?, ?)",
-                    (now, localnow, server['id'], listeners))
+                    "insert into entry (time, server, listeners) values (?, ?, ?)",
+                    (now, server['id'], listeners))
                 rollbackvalues[server['id']] = listeners
             else:
                 cursor.execute(
                     "insert into entry (time, local_time, server, listeners) values (?, ?, ?, ?)",
-                    (now, localnow, server['id'], rollbackvalues[server['id']]/2))
+                    (now, local_now, server['id'], rollbackvalues[server['id']]/2))
                 rollbackvalues[server['id']] = rollbackvalues[server['id']]/2
         conn.commit()
         sleep(600)
