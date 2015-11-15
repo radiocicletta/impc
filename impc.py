@@ -171,7 +171,10 @@ def daemonize(self,
 if __name__ == "__main__":
     dbpath = "./impc.sqlite"
     prepare = not os.path.exists(dbpath)
-    utc = pytz.utc()
+    try:
+        utc = pytz.utc()
+    except:
+        utc = pytz.utc
 
     conn = sqlite3.connect(dbpath)
     conn.row_factory = sqlite3.Row
@@ -210,7 +213,7 @@ if __name__ == "__main__":
             else:
                 cursor.execute(
                     "insert into entry (time, local_time, server, listeners) values (?, ?, ?, ?)",
-                    (now, local_now, server['id'], rollbackvalues[server['id']]/2))
+                    (now, localnow, server['id'], rollbackvalues[server['id']]/2))
                 rollbackvalues[server['id']] = rollbackvalues[server['id']]/2
         conn.commit()
         sleep(600)
