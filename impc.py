@@ -1,4 +1,4 @@
-#!/usr/bin/env
+#!/usr/bin/env python3
 # Icy Multiserver Poll Comparison
 # aka IMPC
 # aka IMPiCcione
@@ -8,7 +8,10 @@ import pycurl
 import sqlite3
 import os
 from time import sleep
-from cStringIO import StringIO
+try:
+    from cStringIO import StringIO
+except:
+    from io import StringIO
 import re
 from datetime import datetime
 import pytz
@@ -101,6 +104,7 @@ def status_json(server):
             return int(listeners)
     return None
 
+
 def shoutcast_icy(server):
     curl = pycurl.Curl()
     buf = StringIO()
@@ -132,6 +136,41 @@ methods = {
     'shoutcast:icy': shoutcast_icy
 }
 
+
+def gen_output(conn):
+    import pandas as pd
+    import pandas.io.sql as psql
+    import numpy
+    from configparser import ConfigParser
+
+    conf = ConfigParser()
+    conf.read('impc.ini')
+
+    for section in conf.sections():
+        query = conf.get(section, "query")
+        indexcol = conf.get(section, "indexcol")
+        parsedates = conf.get(section, "parsedates")
+        print(query, indexcol, parsedates)
+        #return
+        frame = psql.read_sql(
+            query,
+            conn,
+            index_col=indexcol,
+            parse_dates=[parsedates,]
+        )
+
+        group_median = pd.pivot_table(frame, 'listeners', index=frame.index, columns=['name'], aggfunc=numpy.median)
+        group_mean = pd.pivot_table(frame, 'listeners', index=frame.index, columns=['name'], aggfunc=numpy.mean)
+
+        for period in ('m', 'w'):
+
+            median = group_median.resample("1" + period, how='median').interpolate(method='values')
+            mean = group_mean.resample("1" + period, how='mean').interpolate(method='values')
+
+            mean.to_json(path_or_buf="data/%s_%smean.json" % (section, period))
+            median.to_json(path_or_buf="data/%s_%smedian.json" % (section, period))
+
+
 def daemonize(self,
               stdin='/dev/null',
               stdout='/dev/null',
@@ -141,6 +180,7 @@ def daemonize(self,
         pid = os.fork()
         if pid > 0:
             sys.exit(0)   # Exit first parent.
+
     except OSError as e:
         sys.stderr.write("fork #1 failed: (%d) %s\n" % (
             e.errno, e.strerror))
@@ -190,11 +230,12 @@ if __name__ == "__main__":
     if not servers:
         sys.exit()
     for server in servers:
-        print server
+        print(server)
         rollbackvalues[server['id']] = 0
 
     #daemonize()
 
+    regenerate = 0
     while True:
         now = datetime.now(utc)
         for server in cursor.execute("select * from server where active=1").fetchall():
@@ -216,4 +257,12 @@ if __name__ == "__main__":
                     (now, localnow, server['id'], rollbackvalues[server['id']]/2))
                 rollbackvalues[server['id']] = rollbackvalues[server['id']]/2
         conn.commit()
+
+        regenerate += 600
+        if regenerate == 3600:
+            regenerate = 0
+            pid = os.fork()
+            if pid == 0:
+                gen_output(conn)
+
         sleep(600)

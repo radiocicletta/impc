@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>arewelistenedyet?</title>
+    <script src="/js/dygraph-combined.js"></script>
+    <link rel="stylesheet" href="/css/flexo.css">
+    <link rel="stylesheet" href="/css/flexo.layout.css">
+    <link rel="stylesheet" href="/css/flexo.theme.css">
+    <style>
+        .graph{
+            margin-bottom: 2em;
+        }
+        .main {
+            padding: 2em;
+        }
+        .dygraph-legend {
+            background-color: rgba(255,255,255,0.7) !important;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.3);
+            padding: 2px;
+            border-radius: 2px;
+        }
+        aside.faq{
+            background-color: #006CD9;
+            color: #ADD0F3;
+            padding: 1em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Are we listened yet?</h1>
+    <cite>“grasping public data since 2013”©®™</cite>
+    <div data-flex="horizontal">
+        <div class="main">
+            <h2>Daily Average listeners for month (median, 8:00 - 1:00)</h2>
+            <div class="graph" id="medianmonthgraph"></div>
+            <div data-flex="horizontal">
+                <div>
+                    <h3>Daily Average listeners by month (mean)</h3>
+                    <div class="graph" id="meanmonthgraph"></div>
+                </div>
+                <div>
+                    <h3>Daily Average listeners by week (mean)</h3>
+                    <div class="graph" id="meanweekgraph"></div>
+                </div>
+            </div>
+            <h2>Complete Average listeners for week (median, 0:00 - 24:00)</h2>
+            <div class="graph" id="mediancompleteweekgraph"></div>
+        </div>
+        <aside class="faq">
+            <h2>What is this?</h2>
+            A tool to analyze listeners stats for several streaming-only radio stations
+            <h2>Where do these data comes from?</h2>
+            These are public informations taken from icecast and shoutcast servers owned by internet radio broadcasters
+            <h2>How do you collected it?</h2>
+            Using <a href="http://github.com/radiocicletta/impc">this script</a>.
+            <h2>Can i use it too?</h2>
+            Sure.
+        </aside>
+    </div>
+</body>
+    <script>
+    var graphs = [
+        {
+            url: '/data/dailylisteners_mmedian.json',
+            div: 'medianmonthgraph',
+            width: 960
+        },
+        {
+            url: '/data/dailylisteners_mmean.json',
+            div: 'meanmonthgraph',
+            width: 480,
+            height: 200
+        },
+        {
+            url: '/data/dailylisteners_wmean.json',
+            div: 'meanweekgraph',
+            width: 480,
+            height: 200
+        },
+        {
+            url: '/data/24hour_wmean.json',
+            div: 'mediancompleteweekgraph',
+            width: 960,
+        }
+    ];
+    graphs.forEach(function(graph) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', graph.url);
+        xhr.onreadystatechange = function(){
+            if (xhr.readyState !== 4)
+                return;
+            var data = JSON.parse(xhr.responseText),
+                series = [],
+                i,j,
+                gr,
+                labels = [""],
+                ticks = [];
+
+            for (j in data)
+                labels.push(j);
+            for (i in data[labels[1]])
+                ticks.push(i);
+
+            ticks.forEach(function(i) {
+                var tick =  [new Date(parseInt(i))];
+                labels.forEach(function(l){
+                    if (data[l])
+                        tick.push(data[l][i] || 0);
+                })
+                series.push(tick);
+            })
+
+            gr = new Dygraph(
+                document.getElementById(graph.div),
+                series,
+                {
+                    width: graph.width,
+                    height: graph.height,
+                    labels: labels,
+                    strokeWidth: 1,
+                    strokeBorderWidth: 1,
+                    rollPeriod: 4,
+                    showRangeSelector: true,
+                } 
+            )
+        }
+        xhr.send(false);
+    });
+    </script>
+</html>
