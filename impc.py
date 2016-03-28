@@ -68,7 +68,7 @@ def status2_xsl(server):
             pass
         else:
             listeners = re.search(
-                "Global,Clients*:\d+[ ,]Sources?:\s*\d*\s*,[^,]*,(\d+)",
+                r"Global,Clients*:\d+[ ,]Sources?:\s*\d*\s*,[^,]*,(\d+)",
                 buf.getvalue(),
                 re.M).groups()[0]
             return int(listeners)
@@ -121,10 +121,10 @@ def shoutcast_icy(server):
     try:
         curl.perform()
     except:
-       return None
+        return None
     else:
         listeners = re.search(
-            "listeners \((\d+) unique\)",
+            r"listeners \((\d+) unique\)",
             buf.getvalue(),
             re.M).groups()[0]
         return int(listeners)
@@ -171,8 +171,7 @@ def gen_output(conn):
             median.to_json(path_or_buf="data/%s_%smedian.json" % (section, period))
 
 
-def daemonize(self,
-              stdin='/dev/null',
+def daemonize(stdin='/dev/null',
               stdout='/dev/null',
               stderr='/dev/null'):
 
@@ -208,7 +207,8 @@ def daemonize(self,
     os.dup2(se.fileno(), sys.stderr.fileno())
 
 
-if __name__ == "__main__":
+
+def main():
     dbpath = "./impc.sqlite"
     prepare = not os.path.exists(dbpath)
     try:
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     if not servers:
         sys.exit()
     for server in servers:
-        print(server)
+        print(tuple(server))
         rollbackvalues[server['id']] = 0
 
     #daemonize()
@@ -240,7 +240,7 @@ if __name__ == "__main__":
         now = datetime.now(utc)
         for server in cursor.execute("select * from server where active=1").fetchall():
             try:
-                listeners = methods[server["type"]](server)
+                listeners = methods[server["type"]](tuple(server))
             except:
                 listeners = None
             tz = pytz.timezone(server["timezone"])
@@ -266,3 +266,7 @@ if __name__ == "__main__":
                 gen_output(conn)
 
         sleep(600)
+
+
+if __name__ == "__main__":
+    main()
