@@ -11,7 +11,7 @@ from time import sleep
 try:
     from cStringIO import StringIO
 except:
-    from io import StringIO
+    from io import BytesIO as StringIO
 import re
 from datetime import datetime
 import pytz
@@ -69,7 +69,7 @@ def status2_xsl(server):
         else:
             listeners = re.search(
                 r"Global,Clients*:\d+[ ,]Sources?:\s*\d*\s*,[^,]*,(\d+)",
-                buf.getvalue(),
+                buf.getvalue().decode(),
                 re.M).groups()[0]
             return int(listeners)
     return None
@@ -96,7 +96,7 @@ def status_json(server):
             pass
         else:
             buf.seek(0)
-            js = json.load(buf)
+            js = json.loads(buf.getvalue().decode())
             if type(js['icestats']['source']) == list:
                 listeners = sum([int(i['listeners']) for i in js['icestats']['source']])
             elif type(js['icestats']['source']) == dict:
@@ -125,7 +125,7 @@ def shoutcast_icy(server):
     else:
         listeners = re.search(
             r"listeners \((\d+) unique\)",
-            buf.getvalue(),
+            buf.getvalue().decode(),
             re.M).groups()[0]
         return int(listeners)
     return None
@@ -230,7 +230,7 @@ def main():
     if not servers:
         sys.exit()
     for server in servers:
-        print(tuple(server))
+        print(dict(server))
         rollbackvalues[server['id']] = 0
 
     #daemonize()
@@ -240,7 +240,7 @@ def main():
         now = datetime.now(utc)
         for server in cursor.execute("select * from server where active=1").fetchall():
             try:
-                listeners = methods[server["type"]](tuple(server))
+                listeners = methods[server["type"]](dict(server))
             except:
                 listeners = None
             tz = pytz.timezone(server["timezone"])
