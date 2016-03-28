@@ -264,6 +264,7 @@ def main():
             pid = os.fork()
             if pid == 0:
                 gen_output(conn)
+                sys.exit(0)
 
         sleep(600)
 
