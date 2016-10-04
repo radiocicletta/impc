@@ -268,6 +268,34 @@ def main():
 
         sleep(600)
 
+def test():
+    dbpath = "./impc.sqlite"
+    prepare = not os.path.exists(dbpath)
+    try:
+        utc = pytz.utc()
+    except:
+        utc = pytz.utc
+
+    conn = sqlite3.connect(dbpath)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    if prepare:
+        for sql in DBSCHEMA:
+            cursor.execute(sql)
+
+    rollbackvalues = {}
+
+    for server in cursor.execute("select * from server where active=1").fetchall():
+        try:
+            listeners = methods[server["type"]](dict(server))
+            print(server["name"], " ok")
+        except:
+            print(server["name"], " fail")
+
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv[1:]) == 0:
+        main()
+    elif sys.argv[1] == "test":
+        test()
