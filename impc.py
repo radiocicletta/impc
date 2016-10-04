@@ -137,11 +137,17 @@ methods = {
 }
 
 
-def gen_output(conn):
+def gen_output():
     import pandas as pd
     import pandas.io.sql as psql
     import numpy
     from configparser import ConfigParser
+
+    dbpath = "./impc.sqlite"
+
+    conn = sqlite3.connect(dbpath)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
 
     conf = ConfigParser()
     conf.read('impc.ini')
@@ -235,7 +241,6 @@ def main():
 
     #daemonize()
 
-    regenerate = 0
     while True:
         now = datetime.now(utc)
         for server in cursor.execute("select * from server where active=1").fetchall():
@@ -258,14 +263,8 @@ def main():
                 rollbackvalues[server['id']] = rollbackvalues[server['id']]/2
         conn.commit()
 
-        regenerate += 600
-        if regenerate == 3600:
-            regenerate = 0
-            pid = os.fork()
-            if pid == 0:
-                gen_output(conn)
-                sys.exit(0)
 
+        print("sleeping")
         sleep(600)
 
 def test():
@@ -287,11 +286,11 @@ def test():
     rollbackvalues = {}
 
     for server in cursor.execute("select * from server where active=1").fetchall():
-        try:
-            listeners = methods[server["type"]](dict(server))
-            print(server["name"], " ok")
-        except:
-            print(server["name"], " fail")
+        #try:
+        listeners = methods[server["type"]](dict(server))
+        #    print(server["name"], " ok")
+        #except Exception as e:
+        #    print(server["name"], " fail", e)
 
 
 if __name__ == "__main__":
@@ -299,3 +298,5 @@ if __name__ == "__main__":
         main()
     elif sys.argv[1] == "test":
         test()
+    elif sys.argv[1] == "regenerate":
+        gen_output()
