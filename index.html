@@ -15,10 +15,17 @@
             padding: 2em;
         }
         .dygraph-legend {
-            background-color: rgba(255,255,255,0.7) !important;
+            background-color: rgba(255,255,255,0.9) !important;
             box-shadow: 0px 0px 10px rgba(0,0,0,0.3);
-            padding: 2px;
-            border-radius: 2px;
+            font-size: 80% !important;
+            right: -250px;
+            left: auto !important
+        }
+        .dygraph-legend > span { 
+            padding: 4px; 
+        }
+        .dygraph-legend > span.highlight { 
+            background: yellow; border-radius: 0.5em; 
         }
         aside.faq{
             background-color: #006CD9;
@@ -120,8 +127,21 @@
                     labels: labels,
                     strokeWidth: 1,
                     strokeBorderWidth: 1,
-                    rollPeriod: 4,
+                    rollPeriod: 7,
                     showRangeSelector: true,
+                    labelsSeparateLines: true,
+                    highlightSeriesOpts: {
+                        strokeWidth: 3,
+                        strokeBorderWidth: 1,
+                        highlightCircleSize: 5
+                    },
+                    clickCallback: function(ev) {
+                        if (gr.isSeriesLocked()) {
+                            gr.clearSelection();
+                        } else {
+                            gr.setSelection(gr.getSelection(), gr.getHighlightSeries(), true);
+                        }
+                    }
                 } 
             )
         }
